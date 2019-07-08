@@ -4811,10 +4811,12 @@ class Zend_Date extends Zend_Date_DateObject
             return false;
         }
 
-        if (((strpos($format, 'H') !== false) or (strpos($format, 'h') !== false)) and
-            (!isset($parsed['hour']))) {
+        $isHourSet = isset($parsed['hour']) && $parsed['hour'] != "";
+        $needsHour = (strpos($format, 'H') !== false) || (strpos($format, 'h') !== false);
+
+        if ($needsHour && !$isHourSet) {
             // Hour expected but not found
-                return false;
+            return false;
         }
 
         if ((strpos($format, 'm') !== false) and (!isset($parsed['minute']))) {
