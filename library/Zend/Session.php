@@ -199,14 +199,16 @@ class Zend_Session extends Zend_Session_Abstract
     public static function setOptions(array $userOptions = array())
     {
         // set default options on first run only (before applying user settings)
-        if (!self::$_defaultOptionsSet) {
-            foreach (self::$_defaultOptions as $defaultOptionName => $defaultOptionValue) {
-                if (isset(self::$_defaultOptions[$defaultOptionName])) {
-                    ini_set("session.$defaultOptionName", $defaultOptionValue);
+        if(!headers_sent()) {
+            if (!self::$_defaultOptionsSet) {
+                foreach (self::$_defaultOptions as $defaultOptionName => $defaultOptionValue) {
+                    if (isset(self::$_defaultOptions[$defaultOptionName])) {
+                        ini_set("session.$defaultOptionName", $defaultOptionValue);
+                    }
                 }
-            }
 
-            self::$_defaultOptionsSet = true;
+                self::$_defaultOptionsSet = true;
+            }
         }
 
         // set the options the user has requested to set
@@ -216,7 +218,9 @@ class Zend_Session extends Zend_Session_Abstract
 
             // set the ini based values
             if (array_key_exists($userOptionName, self::$_defaultOptions)) {
-                ini_set("session.$userOptionName", $userOptionValue);
+                if(!self::$_sessionStarted) {
+                    ini_set("session.$userOptionName", $userOptionValue);
+                }
             }
             elseif (isset(self::$_localOptions[$userOptionName])) {
                 self::${self::$_localOptions[$userOptionName]} = $userOptionValue;
@@ -277,7 +281,7 @@ class Zend_Session extends Zend_Session_Abstract
             array(&$saveHandler, 'write'),
             array(&$saveHandler, 'destroy'),
             array(&$saveHandler, 'gc')
-            );
+        );
 
         if (!$result) {
             throw new Zend_Session_Exception('Unable to set session handler');
@@ -310,7 +314,7 @@ class Zend_Session extends Zend_Session_Abstract
             /** @see Zend_Session_Exception */
             require_once 'Zend/Session/Exception.php';
             throw new Zend_Session_Exception("You must call " . __CLASS__ . '::' . __FUNCTION__ .
-                "() before any output has been sent to the browser; output started in {$filename}/{$linenum}");
+                                             "() before any output has been sent to the browser; output started in {$filename}/{$linenum}");
         }
 
         if ( !self::$_sessionStarted ) {
@@ -367,14 +371,15 @@ class Zend_Session extends Zend_Session_Abstract
             return;
         }
 
-        $cookieParams = session_get_cookie_params();
-
-        session_set_cookie_params(
-            $seconds,
-            $cookieParams['path'],
-            $cookieParams['domain'],
-            $cookieParams['secure']
+        if (!self::sessionExists()) { // session_set_cookie_params(): Cannot change session cookie parameters when session is active
+            $cookieParams = session_get_cookie_params();
+            session_set_cookie_params(
+                $seconds,
+                $cookieParams['path'],
+                $cookieParams['domain'],
+                $cookieParams['secure']
             );
+        }
 
         // normally "rememberMe()" represents a security context change, so should use new session id
         self::regenerateId();
@@ -454,7 +459,7 @@ class Zend_Session extends Zend_Session_Abstract
             /** @see Zend_Session_Exception */
             require_once 'Zend/Session/Exception.php';
             throw new Zend_Session_Exception("Session must be started before any output has been sent to the browser;"
-               . " output started in {$filename}/{$linenum}");
+                                             . " output started in {$filename}/{$linenum}");
         }
 
         // See http://www.php.net/manual/en/ref.session.php for explanation
@@ -532,6 +537,7 @@ class Zend_Session extends Zend_Session_Abstract
         if (!$hashBitsPerChar) {
             $hashBitsPerChar = 5; // the default value
         }
+        $pattern = '';
         switch($hashBitsPerChar) {
             case 4: $pattern = '^[0-9a-f]*$'; break;
             case 5: $pattern = '^[0-9a-v]*$'; break;
@@ -605,7 +611,7 @@ class Zend_Session extends Zend_Session_Abstract
                         unset($_SESSION['__ZF'][$namespace]['ENVGH']);
                     }
                 }
-                
+
                 if (isset($namespace) && empty($_SESSION['__ZF'][$namespace])) {
                     unset($_SESSION['__ZF'][$namespace]);
                 }
@@ -671,7 +677,7 @@ class Zend_Session extends Zend_Session_Abstract
             /** @see Zend_Session_Exception */
             require_once 'Zend/Session/Exception.php';
             throw new Zend_Session_Exception("You must call ".__CLASS__.'::'.__FUNCTION__.
-                "() before any output has been sent to the browser; output started in {$filename}/{$linenum}");
+                                             "() before any output has been sent to the browser; output started in {$filename}/{$linenum}");
         }
 
         if (!is_string($id) || $id === '') {
@@ -791,7 +797,7 @@ class Zend_Session extends Zend_Session_Abstract
                 $cookie_params['path'],
                 $cookie_params['domain'],
                 $cookie_params['secure']
-                );
+            );
         }
     }
 
